@@ -59,6 +59,13 @@ if six.PY3:
 else:
     str_compat = unicode
 
+# Create a 'marked' default path, to determine if someone has supplied
+# a path on the command-line.
+class _DEFAULT_PATH_TYPE(str_compat):
+    is_default_path = True
+
+_DEFAULT_PATH = _DEFAULT_PATH_TYPE(os.curdir)
+
 def decoding_strings(f):
     def wrapper(*args, **kwargs):
         out = f(*args, **kwargs)
@@ -162,7 +169,7 @@ def ask(question, answer=str_compat, default=None, l=None):
 
 def ask_timezone(question, default, tzurl):
     """Prompt for time zone and validate input"""
-    lower_tz = map(str.lower, pytz.all_timezones)
+    lower_tz = [tz.lower() for tz in pytz.all_timezones]
     while True:
         r = ask(question, str_compat, default)
         r = r.strip().replace(' ', '_').lower()
@@ -178,7 +185,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="A kickstarter for Pelican",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-p', '--path', default=os.curdir,
+    parser.add_argument('-p', '--path', default=_DEFAULT_PATH,
             help="The path to generate the blog into")
     parser.add_argument('-t', '--title', metavar="title",
             help='Set the title of the website')
@@ -200,7 +207,8 @@ needed by Pelican.
 
     project = os.path.join(
         os.environ.get('VIRTUAL_ENV', os.curdir), '.project')
-    if os.path.isfile(project):
+    no_path_was_specified = hasattr(args.path, 'is_default_path')
+    if os.path.isfile(project) and no_path_was_specified:
         CONF['basedir'] = open(project, 'r').read().rstrip("\n")
         print('Using project associated with current virtual environment.'
               'Will save to:\n%s\n' % CONF['basedir'])

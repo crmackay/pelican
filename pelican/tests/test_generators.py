@@ -6,7 +6,10 @@ from codecs import open
 try:
     from unittest.mock import MagicMock
 except ImportError:
-    from mock import MagicMock
+    try:
+        from mock import MagicMock
+    except ImportError:
+        MagicMock = False
 from shutil import rmtree
 from tempfile import mkdtemp
 
@@ -112,6 +115,7 @@ class TestArticlesGenerator(unittest.TestCase):
         return [[article.title, article.status, article.category.name,
                  article.template] for article in articles]
 
+    @unittest.skipUnless(MagicMock, 'Needs Mock module')
     def test_generate_feeds(self):
         settings = get_settings()
         settings['CACHE_PATH'] = self.temp_cache
@@ -215,6 +219,7 @@ class TestArticlesGenerator(unittest.TestCase):
         categories_expected = ['default', 'yeah', 'test', 'zhi-dao-shu']
         self.assertEqual(sorted(categories), sorted(categories_expected))
 
+    @unittest.skipUnless(MagicMock, 'Needs Mock module')
     def test_direct_templates_save_as_default(self):
 
         settings = get_settings(filenames={})
@@ -228,6 +233,7 @@ class TestArticlesGenerator(unittest.TestCase):
                                  generator.get_template("archives"), settings,
                                  blog=True, paginated={}, page_name='archives')
 
+    @unittest.skipUnless(MagicMock, 'Needs Mock module')
     def test_direct_templates_save_as_modified(self):
 
         settings = get_settings()
@@ -244,6 +250,7 @@ class TestArticlesGenerator(unittest.TestCase):
                                  blog=True, paginated={},
                                  page_name='archives/index')
 
+    @unittest.skipUnless(MagicMock, 'Needs Mock module')
     def test_direct_templates_save_as_false(self):
 
         settings = get_settings()
@@ -268,6 +275,7 @@ class TestArticlesGenerator(unittest.TestCase):
         self.assertIn(custom_template, self.articles)
         self.assertIn(standard_template, self.articles)
 
+    @unittest.skipUnless(MagicMock, 'Needs Mock module')
     def test_period_in_timeperiod_archive(self):
         """
         Test that the context of a generated period_archive is passed
@@ -347,6 +355,7 @@ class TestArticlesGenerator(unittest.TestCase):
         authors_expected = ['alexis-metaireau', 'first-author', 'second-author']
         self.assertEqual(sorted(authors), sorted(authors_expected))
 
+    @unittest.skipUnless(MagicMock, 'Needs Mock module')
     def test_article_object_caching(self):
         """Test Article objects caching at the generator level"""
         settings = get_settings(filenames={})
@@ -367,6 +376,7 @@ class TestArticlesGenerator(unittest.TestCase):
         generator.generate_context()
         generator.readers.read_file.assert_called_count == 0
 
+    @unittest.skipUnless(MagicMock, 'Needs Mock module')
     def test_reader_content_caching(self):
         """Test raw content caching at the reader level"""
         settings = get_settings(filenames={})
@@ -389,6 +399,7 @@ class TestArticlesGenerator(unittest.TestCase):
         for reader in readers.values():
             reader.read.assert_called_count == 0
 
+    @unittest.skipUnless(MagicMock, 'Needs Mock module')
     def test_ignore_cache(self):
         """Test that all the articles are read again when not loading cache
 
@@ -412,6 +423,38 @@ class TestArticlesGenerator(unittest.TestCase):
         generator.readers.read_file = MagicMock()
         generator.generate_context()
         generator.readers.read_file.assert_called_count == orig_call_count
+
+    def test_standard_metadata_in_default_metadata(self):
+        settings = get_settings(filenames={})
+        settings['CACHE_CONTENT'] = False
+        settings['DEFAULT_CATEGORY'] = 'Default'
+        settings['DEFAULT_DATE'] = (1970, 1, 1)
+        settings['DEFAULT_METADATA'] = (('author', 'Blogger'),
+                                        # category will be ignored in favor of
+                                        # DEFAULT_CATEGORY
+                                        ('category', 'Random'),
+                                        ('tags', 'general, untagged'))
+        generator = ArticlesGenerator(
+            context=settings.copy(), settings=settings,
+            path=CONTENT_DIR, theme=settings['THEME'], output_path=None)
+        generator.generate_context()
+
+        authors = sorted([author.name for author, _ in generator.authors])
+        authors_expected = sorted(['Alexis Métaireau', 'Blogger',
+                                   'First Author', 'Second Author'])
+        self.assertEqual(authors, authors_expected)
+
+        categories = sorted([category.name
+                             for category, _ in generator.categories])
+        categories_expected = [
+            sorted(['Default', 'TestCategory', 'yeah', 'test', '指導書']),
+            sorted(['Default', 'TestCategory', 'Yeah', 'test', '指導書'])]
+        self.assertIn(categories, categories_expected)
+
+        tags = sorted([tag.name for tag in generator.tags])
+        tags_expected = sorted(['bar', 'foo', 'foobar', 'general', 'untagged',
+                                'パイソン', 'マック'])
+        self.assertEqual(tags, tags_expected)
 
 
 class TestPageGenerator(unittest.TestCase):
@@ -460,6 +503,7 @@ class TestPageGenerator(unittest.TestCase):
         self.assertEqual(sorted(pages_expected), sorted(pages))
         self.assertEqual(sorted(hidden_pages_expected), sorted(hidden_pages))
 
+    @unittest.skipUnless(MagicMock, 'Needs Mock module')
     def test_page_object_caching(self):
         """Test Page objects caching at the generator level"""
         settings = get_settings(filenames={})
@@ -480,6 +524,7 @@ class TestPageGenerator(unittest.TestCase):
         generator.generate_context()
         generator.readers.read_file.assert_called_count == 0
 
+    @unittest.skipUnless(MagicMock, 'Needs Mock module')
     def test_reader_content_caching(self):
         """Test raw content caching at the reader level"""
         settings = get_settings(filenames={})
@@ -502,6 +547,7 @@ class TestPageGenerator(unittest.TestCase):
         for reader in readers.values():
             reader.read.assert_called_count == 0
 
+    @unittest.skipUnless(MagicMock, 'Needs Mock module')
     def test_ignore_cache(self):
         """Test that all the pages are read again when not loading cache
 

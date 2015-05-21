@@ -159,7 +159,12 @@ Setting name (followed by default value, if any)                                
                                                                                  Pelican's default settings include the "images" directory here.
 ``STATIC_EXCLUDES = []``                                                         A list of directories to exclude when looking for static files.
 ``STATIC_EXCLUDE_SOURCES = True``                                                If set to False, content source files will not be skipped when
-                                                                                 copying files found in ``STATIC_PATHS``.
+                                                                                 copying files found in ``STATIC_PATHS``. This setting is for
+                                                                                 backward compatibility with Pelican releases before version 3.5.
+                                                                                 It has no effect unless ``STATIC_PATHS`` contains a directory that
+                                                                                 is also in ``ARTICLE_PATHS`` or ``PAGE_PATHS``. If you are trying
+                                                                                 to publish your site's source files, consider using the
+                                                                                 ``OUTPUT_SOURCES`` setting instead.
 ``TIMEZONE``                                                                     The timezone used in the date information, to
                                                                                  generate Atom and RSS feeds. See the *Timezone*
                                                                                  section below for more info.
@@ -470,14 +475,14 @@ your resume, and a contact page — you could have::
 Path metadata
 =============
 
-Not all metadata needs to be `embedded in source file itself`__.  For
-example, blog posts are often named following a ``YYYY-MM-DD-SLUG.rst``
-pattern, or nested into ``YYYY/MM/DD-SLUG`` directories.  To extract
-metadata from the filename or path, set ``FILENAME_METADATA`` or
-``PATH_METADATA`` to regular expressions that use Python's `group name
-notation`_ ``(?P<name>…)``.  If you want to attach additional metadata
-but don't want to encode it in the path, you can set
-``EXTRA_PATH_METADATA``:
+Not all metadata needs to be :ref:`embedded in source file itself
+<internal_metadata>`. For example, blog posts are often named
+following a ``YYYY-MM-DD-SLUG.rst`` pattern, or nested into
+``YYYY/MM/DD-SLUG`` directories. To extract metadata from the
+filename or path, set ``FILENAME_METADATA`` or ``PATH_METADATA`` to
+regular expressions that use Python's `group name notation`_ ``(?P<name>…)``.
+If you want to attach additional metadata but don't want to encode
+it in the path, you can set ``EXTRA_PATH_METADATA``:
 
 .. parsed-literal::
 
@@ -506,7 +511,6 @@ particular file:
         'static/robots.txt': {'path': 'robots.txt'},
         }
 
-__ internal_metadata__
 .. _group name notation:
    http://docs.python.org/3/library/re.html#regular-expression-syntax
 
@@ -619,53 +623,6 @@ second (and subsequent) pages to be ``/page/2/``, you would set
 This would cause the first page to be written to
 ``{base_name}/index.html``, and subsequent ones would be written into
 ``page/{number}`` directories.
-
-
-Tag cloud
-=========
-
-If you want to generate a tag cloud with all your tags, you can do so using the
-following settings.
-
-================================================    =====================================================
-Setting name (followed by default value)            What does it do?
-================================================    =====================================================
-``TAG_CLOUD_STEPS = 4``                             Count of different font sizes in the tag
-                                                    cloud.
-``TAG_CLOUD_MAX_ITEMS = 100``                       Maximum number of tags in the cloud.
-================================================    =====================================================
-
-The default theme does not include a tag cloud, but it is pretty easy to add one::
-
-    <ul class="tagcloud">
-        {% for tag in tag_cloud %}
-            <li class="tag-{{ tag.1 }}"><a href="{{ SITEURL }}/{{ tag.0.url }}">{{ tag.0 }}</a></li>
-        {% endfor %}
-    </ul>
-
-You should then also define CSS styles with appropriate classes (tag-1 to tag-N,
-where N matches ``TAG_CLOUD_STEPS``), tag-1 being the most frequent, and
-define a ``ul.tagcloud`` class with appropriate list-style to create the cloud.
-For example::
-
-    ul.tagcloud {
-      list-style: none;
-        padding: 0;
-    }
-
-    ul.tagcloud li {
-        display: inline-block;
-    }
-
-    li.tag-1 {
-        font-size: 150%;
-    }
-
-    li.tag-2 {
-        font-size: 120%;
-    }
-
-    ...
 
 
 Translations
@@ -847,13 +804,11 @@ can be invoked by passing the ``--archive`` flag).
 
 The cache files are Python pickles, so they may not be readable by
 different versions of Python as the pickle format often changes. If
-such an error is encountered, the cache files have to be rebuilt by
-removing them and re-running Pelican, or by using the Pelican
-command-line option ``--ignore-cache``. The cache files also have to
-be rebuilt when changing the ``GZIP_CACHE`` setting for cache file
-reading to work properly.
+such an error is encountered, it is caught and the cache file is 
+rebuilt automatically in the new format. The cache files will also be 
+rebuilt after the ``GZIP_CACHE`` setting has been changed.
 
-The ``--ignore-cache`` command-line option is also useful when the
+The ``--ignore-cache`` command-line option is useful when the
 whole cache needs to be regenerated, such as when making modifications
 to the settings file that will affect the cached content, or just for
 debugging purposes. When Pelican runs in autoreload mode, modification

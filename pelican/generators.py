@@ -3,8 +3,6 @@ from __future__ import unicode_literals, print_function
 
 import os
 import six
-import math
-import random
 import logging
 import shutil
 import fnmatch
@@ -14,7 +12,7 @@ from codecs import open
 from collections import defaultdict
 from functools import partial
 from itertools import chain, groupby
-from operator import attrgetter, itemgetter
+from operator import attrgetter
 
 from jinja2 import (Environment, FileSystemLoader, PrefixLoader, ChoiceLoader,
                     BaseLoader, TemplateNotFound)
@@ -22,7 +20,8 @@ from jinja2 import (Environment, FileSystemLoader, PrefixLoader, ChoiceLoader,
 from pelican.contents import Article, Draft, Page, Static, is_valid_content
 from pelican.readers import Readers
 from pelican.utils import (copy, process_translations, mkdir_p, DateFormatter,
-                           FileStampDataCacher, python_2_unicode_compatible)
+                           FileStampDataCacher, python_2_unicode_compatible,
+                           posixize_path)
 from pelican import signals
 
 
@@ -160,7 +159,7 @@ class Generator(object):
         (For example, one that was missing mandatory metadata.)
         The path argument is expected to be relative to self.path.
         """
-        self.context['filenames'][os.path.normpath(path)] = None
+        self.context['filenames'][posixize_path(os.path.normpath(path))] = None
 
     def _is_potential_source_path(self, path):
         """Return True if path was supposed to be used as a source file.
@@ -168,7 +167,7 @@ class Generator(object):
         before this method is called, even if they failed to process.)
         The path argument is expected to be relative to self.path.
         """
-        return os.path.normpath(path) in self.context['filenames']
+        return posixize_path(os.path.normpath(path)) in self.context['filenames']
 
     def _update_context(self, items):
         """Update the context with the given items from the currrent
@@ -525,6 +524,7 @@ class ArticlesGenerator(CachingGenerator):
                     preread_sender=self,
                     context_signal=signals.article_generator_context,
                     context_sender=self)
+                self.add_source_path(draft)
                 all_drafts.append(draft)
             else:
                 logger.error("Unknown status '%s' for file %s, skipping it.",
@@ -544,41 +544,13 @@ class ArticlesGenerator(CachingGenerator):
             if hasattr(article, 'tags'):
                 for tag in article.tags:
                     self.tags[tag].append(article)
-            # ignore blank authors as well as undefined
             for author in getattr(article, 'authors', []):
-                if author.name != '':
-                    self.authors[author].append(article)
+                self.authors[author].append(article)
         # sort the articles by date
         self.articles.sort(key=attrgetter('date'), reverse=True)
         self.dates = list(self.articles)
         self.dates.sort(key=attrgetter('date'),
                         reverse=self.context['NEWEST_FIRST_ARCHIVES'])
-
-        # create tag cloud
-        tag_cloud = defaultdict(int)
-        for article in self.articles:
-            for tag in getattr(article, 'tags', []):
-                tag_cloud[tag] += 1
-
-        tag_cloud = sorted(tag_cloud.items(), key=itemgetter(1), reverse=True)
-        tag_cloud = tag_cloud[:self.settings.get('TAG_CLOUD_MAX_ITEMS')]
-
-        tags = list(map(itemgetter(1), tag_cloud))
-        if tags:
-            max_count = max(tags)
-        steps = self.settings.get('TAG_CLOUD_STEPS')
-
-        # calculate word sizes
-        self.tag_cloud = [
-            (
-                tag,
-                int(math.floor(steps - (steps - 1) * math.log(count)
-                    / (math.log(max_count)or 1)))
-            )
-            for tag, count in tag_cloud
-        ]
-        # put words in chaos
-        random.shuffle(self.tag_cloud)
 
         # and generate the output :)
 
@@ -591,7 +563,7 @@ class ArticlesGenerator(CachingGenerator):
         self.authors.sort()
 
         self._update_context(('articles', 'dates', 'tags', 'categories',
-                              'tag_cloud', 'authors', 'related_posts'))
+                              'authors', 'related_posts'))
         self.save_cache()
         self.readers.save_cache()
         signals.article_generator_finalized.send(self)
@@ -670,6 +642,7 @@ class PagesGenerator(CachingGenerator):
                 self.context, page=page,
                 relative_urls=self.settings['RELATIVE_URLS'],
                 override_output=hasattr(page, 'override_save_as'))
+        signals.page_writer_finalized.send(self, writer=writer)
 
 
 class StaticGenerator(Generator):
